@@ -1,6 +1,6 @@
 import express from 'express'
-import { verifyJWT } from '../lib/verifyJWT';
-import { acceptFriendRequest, getFriendRequests, getMyFriends, getOutgoingFriendReqs, getRecommendedUsers } from '../controller/user.controller';
+import { verifyJWT } from '../lib/verifyJWT.js';
+import { acceptFriendRequest, getFriendRequests, getMyFriends, getOutgoingFriendReqs, getRecommendedUsers, sendFriendRequest } from '../controller/user.controller.js';
 
 const router = express.Router();
 

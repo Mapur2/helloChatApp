@@ -18,7 +18,7 @@ app.use(cors({
 app.use(cookieParser());
 app.use("/api/auth", authRoutes)
 app.use("/api/users", userRoutes)
-app.use("/api/chats", chatRoutes)
+app.use("/api/chat", chatRoutes)
 
 app.listen(PORT, () => {
     connectDb()

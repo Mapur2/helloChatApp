@@ -8,35 +8,46 @@ import ChatPage from './pages/ChatPage'
 import CallPage from './pages/CallPage'
 import OnboardingPage from './pages/OnboardingPage'
 import toast, { Toaster } from 'react-hot-toast'
-import { useQuery } from '@tanstack/react-query'
-import axiosInstance from './lib/axio.js'
+import PageLoader from './components/PageLoader.jsx'
+import useAuthUser from './hooks/useAuthUser.js'
+import Layout from './components/Layout.jsx'
+import useThemeStore from './store/useThemeStore.js'
+import FriendsPage from './pages/FriendsPage.jsx'
 
 function App() {
-  const { data:authData, isLoading, isError } = useQuery({
-    queryKey:["authUser"],
-    queryFn: async () => {
-      const res = await axiosInstance.get('/auth/me')
-      return res.data
-    },
-    retry:false
-  })
-  const authUser = authData?.user;
+  const { authUser, isLoading } = useAuthUser();
+  const { theme } = useThemeStore();
+
+  const isAuthenticated = Boolean(authUser);
+  const isOnboardingComplete = authUser?.isOnboarded;
+  if (isLoading) {
+    return <div><PageLoader /></div>
+  }
 
   return (
     <>
-    <div className='h-screen' data-theme="forest">
-      <Routes>
-        <Route path="/" element={authUser?<HomePages />:<Navigate to="/login" />} />
-        <Route path="/login" element={authUser?<Navigate to="/" />:<LoginPage />} />
-        <Route path="/signup" element={authUser?<Navigate to="/" />:<SignUpPage />} />
-        <Route path="/notifications" element={authUser?<NotificationPage />:<Navigate to="/login" />} />
-        <Route path = "/chat" element={authUser?<ChatPage />:<Navigate to="/login" />} />
-        <Route path = "/call" element={authUser?<CallPage />:<Navigate to="/login" />} />
-        <Route path="/onboarding" element={authUser?<OnboardingPage />:<Navigate to="/login" />} />
-        <Route path="*" element={<div className='flex justify-center items-center h-screen text-3xl font-semibold'>404 | Page Not Found</div>} />
-      </Routes>
-      <Toaster/>
-    </div>
+      <div className='h-screen' data-theme={theme}>
+        <Routes>
+          <Route path="/" element={isAuthenticated && isOnboardingComplete ?
+            <Layout showSidebar={true}>
+              <HomePages />
+            </Layout> :
+            <Navigate to={isAuthenticated ? "/onboarding" : "/login"} />} />
+          <Route path="/login" element={!isAuthenticated ? <LoginPage /> : isOnboardingComplete ? <Navigate to="/" /> : <Navigate to="/onboarding" />} />
+          <Route path="/signup" element={isAuthenticated ? <Navigate to="/" /> : <SignUpPage />} />
+          <Route path="/notifications" element={isAuthenticated ? <Layout showSidebar={true}><NotificationPage /> </Layout>: <Navigate to="/login" />} />
+          <Route path="/friends" element={isAuthenticated && isOnboardingComplete ? <Layout showSidebar={true}>
+            <FriendsPage />
+          </Layout> : <Navigate to={isAuthenticated ? "/onboarding" : "/login"} />} />
+          <Route path="/chat/:id" element={isAuthenticated && isOnboardingComplete ? <Layout showSidebar={true}>
+            <ChatPage />
+          </Layout> : <Navigate to={isAuthenticated ? "/onboarding" : "/login"} />} />
+          <Route path="/call/:id" element={isAuthenticated && isOnboardingComplete ? <CallPage /> : <Navigate to={isAuthenticated ? "/onboarding" : "/login"} />} />
+          <Route path="/onboarding" element={isAuthenticated ? <OnboardingPage /> : <Navigate to="/login" />} />
+          <Route path="*" element={<div className='flex justify-center items-center h-screen text-3xl font-semibold'>404 | Page Not Found</div>} />
+        </Routes>
+        <Toaster />
+      </div>
     </>
   )
 }

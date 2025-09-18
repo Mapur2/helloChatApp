@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   getOutgoingFriendReqs,
   getRecommendedUsers,
@@ -7,6 +7,7 @@ import {
   sendFriendRequest,
   getFriendRequests,
   acceptFriendRequest,
+  getUsersByName,
 } from "../lib/api";
 import { Link } from "react-router-dom";
 import { 
@@ -28,6 +29,7 @@ const HomePage = () => {
   const queryClient = useQueryClient();
   const [outgoingRequestsIds, setOutgoingRequestsIds] = useState(new Set());
   const [incomingRequestsMap, setIncomingRequestsMap] = useState(new Map());
+  const [searchTerm, setSearchTerm] = useState("");
 
   const { data: friends = [], isLoading: loadingFriends } = useQuery({
     queryKey: ["friends"],
@@ -37,6 +39,24 @@ const HomePage = () => {
   const { data: recommendedUsers = [], isLoading: loadingUsers } = useQuery({
     queryKey: ["users"],
     queryFn: getRecommendedUsers,
+  });
+
+  // Debounce search input
+  const debouncedRef = useMemo(() => ({ id: null }), []);
+  const [effectiveSearch, setEffectiveSearch] = useState("");
+  useEffect(() => {
+    if (debouncedRef.id) clearTimeout(debouncedRef.id);
+    debouncedRef.id = setTimeout(() => setEffectiveSearch(searchTerm), 300);
+    return () => {
+      if (debouncedRef.id) clearTimeout(debouncedRef.id);
+    };
+  }, [searchTerm, debouncedRef]);
+
+  const { data: searchResult = { success: false, users: [] }, isLoading: isSearching } = useQuery({
+    queryKey: ["usersByName", effectiveSearch],
+    queryFn: () => getUsersByName(effectiveSearch),
+    enabled: effectiveSearch.trim().length > 0,
+    staleTime: 60_000,
   });
 
   const { data: outgoingFriendReqs } = useQuery({
@@ -101,9 +121,6 @@ const HomePage = () => {
               <h1 className="text-3xl sm:text-4xl font-bold">Welcome Back!</h1>
               <SparklesIcon className="size-6" />
             </div>
-            <p className="text-lg opacity-70 max-w-2xl mx-auto">
-              Connect with language learners around the world and practice together
-            </p>
           </div>
 
           {/* Friends Section */}
@@ -162,22 +179,120 @@ const HomePage = () => {
                     <GlobeIcon className="size-6 text-secondary" />
                   </div>
                   <div>
-                    <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Meet New Learners</h2>
+                    <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Meet New People</h2>
                     <p className="text-sm opacity-60">
-                      Discover perfect language exchange partners based on your profile
+                      Discover new people based on your profile
                     </p>
                   </div>
+                </div>
+                <div className="w-full sm:w-80">
+                  <label className="input input-bordered flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="size-4 opacity-70">
+                      <path fillRule="evenodd" d="M9.965 11.026a5 5 0 1 1 1.06-1.06l2.755 2.755a.75.75 0 1 1-1.06 1.06l-2.755-2.755ZM10.5 7a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0Z" clipRule="evenodd" />
+                    </svg>
+                    <input
+                      type="text"
+                      className="grow"
+                      placeholder="Search by name..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </label>
                 </div>
               </div>
             </div>
 
-            {loadingUsers ? (
+            {loadingUsers && !effectiveSearch ? (
               <div className="flex justify-center py-16">
                 <div className="flex flex-col items-center gap-4">
                   <div className="loading loading-spinner loading-lg text-secondary"></div>
                   <p className="text-sm opacity-60">Finding amazing language partners...</p>
                 </div>
               </div>
+            ) : effectiveSearch ? (
+              isSearching ? (
+                <div className="flex justify-center py-16">
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="loading loading-spinner loading-lg text-secondary"></div>
+                    <p className="text-sm opacity-60">Searching users...</p>
+                  </div>
+                </div>
+              ) : searchResult.users.length === 0 ? (
+                <div className="card bg-gradient-to-r from-base-200 to-base-300 p-8 text-center border border-base-300 shadow-lg">
+                  <div className="max-w-md mx-auto">
+                    <div className="p-4 bg-base-100 rounded-full w-fit mx-auto mb-4">
+                      <UsersIcon className="size-8 text-base-content/50" />
+                    </div>
+                    <h3 className="font-semibold text-xl mb-3">No users found</h3>
+                    <div className="badge badge-outline">Try a different name</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {searchResult.users.map((user, index) => {
+                    const hasRequestBeenSent = outgoingRequestsIds.has(user._id);
+                    const hasIncomingRequest = incomingRequestsMap.has(user._id);
+                    const incomingRequestId = incomingRequestsMap.get(user._id);
+
+                    return (
+                      <div
+                        key={user._id}
+                        className="group card bg-gradient-to-br from-base-200 to-base-300 hover:from-base-100 hover:to-base-200 border border-base-300 hover:border-primary/20 hover:shadow-2xl transition-all duration-500 hover:scale-105 animate-fade-in"
+                        style={{ animationDelay: `${index * 150}ms` }}
+                      >
+                        <div className="card-body p-6 space-y-5">
+                          <div className="flex items-center gap-4">
+                            <div className="avatar size-16 ring-4 ring-primary/10 group-hover:ring-primary/30 transition-all duration-300">
+                              <img 
+                                src={user.profilePic} 
+                                alt={user.fullName}
+                                className="rounded-full object-cover"
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-bold text-lg truncate group-hover:text-primary transition-colors">
+                                {user.fullName}
+                              </h3>
+                            </div>
+                          </div>
+                          {hasIncomingRequest ? (
+                            <button
+                              className="btn btn-success w-full mt-2 gap-2 hover:btn-success/80 transition-all duration-300 hover:scale-105 hover:shadow-lg"
+                              onClick={() => handleAcceptRequest(incomingRequestId)}
+                              disabled={isAcceptingRequest}
+                            >
+                              <CheckIcon className="size-4" />
+                              {isAcceptingRequest ? "Accepting..." : "Accept Friend Request"}
+                            </button>
+                          ) : (
+                            <button
+                              className={`btn w-full mt-2 gap-2 transition-all duration-300 ${
+                                hasRequestBeenSent 
+                                  ? "btn-success btn-outline" 
+                                  : "btn-primary hover:btn-secondary"
+                              } hover:scale-105 hover:shadow-lg`}
+                              onClick={() => sendRequestMutation(user._id)}
+                              disabled={hasRequestBeenSent || isSendingRequest}
+                            >
+                              {hasRequestBeenSent ? (
+                                <>
+                                  <CheckCircleIcon className="size-4" />
+                                  Request Sent
+                                </>
+                              ) : (
+                                <>
+                                  <UserPlusIcon className="size-4" />
+                                  {isSendingRequest ? "Sending..." : "Send Friend Request"}
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )
             ) : recommendedUsers.length === 0 ? (
               <div className="card bg-gradient-to-r from-base-200 to-base-300 p-8 text-center border border-base-300 shadow-lg">
                 <div className="max-w-md mx-auto">

@@ -20,7 +20,7 @@ const FriendCard = ({ friend }) => {
             </h3>
             <div className="flex items-center gap-1 text-xs opacity-60">
               <HeartIcon className="size-3" />
-              <span>Language Partner</span>
+              <span>{friend?.nativeLanguage||""}</span>
             </div>
           </div>
         </div>

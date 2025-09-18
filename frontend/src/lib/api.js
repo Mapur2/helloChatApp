@@ -64,3 +64,17 @@ export async function getStreamToken() {
   const response = await axiosInstance.get("/chat/token");
   return response.data;
 }
+
+export async function getUsersByName(name) {
+  const response = await axiosInstance.get(`/users/search?name=${name}`);
+  return response.data;
+}
+
+export async function uploadProfilePic(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await axiosInstance.post("/users/upload-profile-pic", formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+}

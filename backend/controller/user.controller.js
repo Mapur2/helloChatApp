@@ -1,5 +1,6 @@
 import User from "../models/User.js";
 import FriendRequest from "../models/FriendRequest.js";
+import { deleteOnCloudindary, uploadOnCloudinary } from "../lib/cloudinary.js";
 
 export async function getRecommendedUsers(req, res) {
   try {
@@ -29,6 +30,20 @@ export async function getMyFriends(req, res) {
     res.status(200).json(user.friends);
   } catch (error) {
     console.error("Error in getMyFriends controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function getUsersByName(req, res) {
+  try {
+    const { name } = req.query;
+    const users = await User.find({
+      fullName: { $regex: name, $options: "i" },
+      _id: { $ne: req.user._id },
+    });
+    res.status(200).json({ success: true, users });
+  } catch (error) {
+    console.error("Error in getUsersByName controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
@@ -140,6 +155,35 @@ export async function getOutgoingFriendReqs(req, res) {
     res.status(200).json(outgoingRequests);
   } catch (error) {
     console.log("Error in getOutgoingFriendReqs controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function uploadProfilePic(req, res) {
+  try {
+    const image = req.file;
+    if (!image) {
+      return res.status(400).json({ message: "No image provided" });
+    }
+    console.log(image.path);
+    const id = req.user._id;
+    const user = await User.findById(id);
+    if (user.imageId) {
+      await deleteOnCloudindary(user.imageId);
+    }
+    const result = await uploadOnCloudinary(image?.path);
+    if (!result) {
+      return res.status(500).json({ message: "Image upload failed" });
+    }
+    const newResult = await User.findByIdAndUpdate(id,
+      {
+        profilePic: result.secure_url,
+        imageId: result.public_id
+      },
+      { new: true });
+    res.status(200).json({ success: true, message: "Profile picture uploaded successfully", profilePic: newResult.profilePic });
+  } catch (error) {
+    console.log("Error in uploadProfilePic controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 }

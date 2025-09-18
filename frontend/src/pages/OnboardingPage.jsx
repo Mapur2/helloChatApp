@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import useAuthUser from "../hooks/useAuthUser";
-import { completeOnboarding } from "../lib/api";
+import { completeOnboarding, uploadProfilePic } from "../lib/api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import PageLoader from "../components/PageLoader";
 import { toast } from "react-hot-toast";
@@ -26,13 +26,27 @@ function OnboardingPage() {
     mutationFn: completeOnboarding,
     onSuccess: () => {
       toast.success("Onboarding complete!");
-      navigate("/");
       console.log("Onboarding complete!", authUser);
       queryClient.invalidateQueries({ queryKey: ["authUser"] });
+      window.location.reload();
     },
     onError: () => {
       toast.error("Onboarding failed.");
     },
+  });
+
+  const { mutate: uploadMutation, isPending: isUploading } = useMutation({
+    mutationFn: uploadProfilePic,
+    onSuccess: (data) => {
+      if (data?.profilePic) {
+        setFormData((prev) => ({ ...prev, profilePic: data.profilePic }));
+        toast.success("Profile picture updated");
+        queryClient.invalidateQueries({ queryKey: ["authUser"] });
+      } else {
+        toast.error(data?.message || "Upload failed");
+      }
+    },
+    onError: () => toast.error("Upload failed"),
   });
 
   const handleChange = (e) => {
@@ -66,6 +80,24 @@ function OnboardingPage() {
             />
           </div>
         )}
+        {/* Profile Picture Upload */}
+        <div className="form-control">
+          <label className="label">
+            <span className="label-text font-semibold">Profile Picture</span>
+          </label>
+          <input
+            type="file"
+            accept="image/*"
+            className="file-input file-input-bordered w-full"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                uploadMutation(file);
+              }
+            }}
+          />
+          {isUploading && <span className="text-sm mt-2">Uploading...</span>}
+        </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Full Name */}
           <div className="form-control">
@@ -157,7 +189,7 @@ function OnboardingPage() {
                 className="btn btn-secondary w-full"
                 onClick={() => navigate("/")}
               >
-                Cancel
+                Back to Home
               </button>
             </div>
           </div>

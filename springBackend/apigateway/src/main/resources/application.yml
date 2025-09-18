@@ -1,0 +1,47 @@
+spring :
+  application :
+    name : apigateway
+  cloud:
+    config:
+      enabled: false
+    gateway:
+        routes:
+          - id: user-service
+            uri: lb://user-service #lb means load balancer
+            predicates:
+              - Path=/api/users/**
+
+          - id: activity-service
+            uri: lb://ACTIVITY-SERVICE
+            predicates:
+              - Path=/api/activities/**
+
+          - id: ai-service
+            uri: lb://AI-SERVICE
+            predicates:
+              - Path=/api/recommendations/**
+        globalcors:
+           corsConfigurations:
+            '[/**]':
+              allowedOrigins: "http://localhost:5173"
+              allowedMethods:
+                - GET
+                - POST
+                - PUT
+                - DELETE
+                - OPTIONS
+              allowedHeaders: "*"
+              allowCredentials: true
+
+
+server:
+  port: 8079
+
+eureka:
+  client:
+    fetch-registry: true
+    register-with-eureka: true
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+  instance:
+    hostname: localhost

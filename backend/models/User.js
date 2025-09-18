@@ -39,6 +39,10 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    imageId: {
+        type: String,
+        default: ""
+    },
     friends: [
         {
             type: mongoose.Schema.Types.ObjectId,
